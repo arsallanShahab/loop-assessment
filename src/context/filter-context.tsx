@@ -39,7 +39,7 @@ export const FilterProvider: React.FC<{ children: React.ReactNode }> = ({
   // Function to extract mod columns from CSV headers
   const extractModColumns = (headers: string[]): string[] => {
     const modColumns = headers.filter(
-      (header) => header.match(/^mod\d+$/i) // Match columns like mod3, mod350, mod8000, etc.
+      (header) => header.match(/^mod\d+$/i) // Match columns like mod3, mod350, mod8000
     );
     console.log("Found mod columns:", modColumns);
     return modColumns;

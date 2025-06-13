@@ -38,8 +38,6 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
     setVisibleStart(0);
   };
 
-  // Get all available columns from the first row of data (fallback to filterColumns)
-  const allColumns = data.length > 0 ? Object.keys(data[0]) : [];
   const displayColumns = ["number", ...filterColumns]; // Always show 'number' first, then dynamic columns
 
   return (
