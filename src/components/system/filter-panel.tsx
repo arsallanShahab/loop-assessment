@@ -1,11 +1,12 @@
 import { useFilter } from "@/context/filter-context";
-import { Filter } from "lucide-react";
+import { Filter, Loader2 } from "lucide-react";
 import { useCallback } from "react";
 import MultiSelect from "./multi-select";
 
 // Filter panel component
 const FilterPanel: React.FC = () => {
-  const { filters, setFilters, availableOptions } = useFilter();
+  const { filters, setFilters, availableOptions, filterColumns, isLoading } =
+    useFilter();
 
   const handleSelectionChange = useCallback(
     (column: string, values: Set<number>) => {
@@ -17,11 +18,31 @@ const FilterPanel: React.FC = () => {
     [setFilters]
   );
 
-  const filterColumns = ["mod3", "mod4", "mod5", "mod6"];
   const activeFiltersCount = Object.values(filters).reduce(
     (sum, filterSet) => sum + filterSet.size,
     0
   );
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin mr-2" />
+          <span className="text-gray-600">Loading filters...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (filterColumns.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="text-center py-8 text-gray-500">
+          No filter columns found in the dataset
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">

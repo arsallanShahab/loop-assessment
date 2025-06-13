@@ -1,4 +1,4 @@
-import type { DataRow } from "@/pages/home";
+import type { DataRow } from "@/components/dashboard/data-table";
 import Papa from "papaparse";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
@@ -11,6 +11,8 @@ interface FilterContextType {
   setFilters: React.Dispatch<React.SetStateAction<FilterState>>;
   filteredData: DataRow[] | undefined;
   availableOptions: { [key: string]: number[] };
+  filterColumns: string[];
+  isLoading: boolean;
 }
 
 // Context for state management
@@ -30,19 +32,38 @@ export const FilterProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [rawData, setRawData] = useState<DataRow[]>();
-  const [filters, setFilters] = useState<FilterState>({
-    mod3: new Set(),
-    mod4: new Set(),
-    mod5: new Set(),
-    mod6: new Set(),
-  });
+  const [filters, setFilters] = useState<FilterState>({});
+  const [filterColumns, setFilterColumns] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const loadCSVData = async (): Promise<DataRow[]> => {
+  // Function to extract mod columns from CSV headers
+  const extractModColumns = (headers: string[]): string[] => {
+    const modColumns = headers.filter(
+      (header) => header.match(/^mod\d+$/i) // Match columns like mod3, mod350, mod8000, etc.
+    );
+    console.log("Found mod columns:", modColumns);
+    return modColumns;
+  };
+
+  const loadCSVData = async (): Promise<{
+    data: DataRow[];
+    columns: string[];
+  }> => {
     try {
-      // small dataset for testing
-      // const response = await fetch("/data/dataset_small.csv");
-      // large dataset for production
-      const response = await fetch("/data/dataset_large.csv");
+      setIsLoading(true);
+
+      let response: Response;
+
+      if (import.meta.env.VITE_ENV === "development") {
+        // small dataset for testing
+        response = await fetch("/data/dataset_small.csv");
+      } else {
+        // large dataset for production
+        response = await fetch("/data/dataset_large.csv");
+      }
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const csvContent = await response.text();
       console.log(csvContent);
       const parsed = Papa.parse(csvContent, {
@@ -50,11 +71,33 @@ export const FilterProvider: React.FC<{ children: React.ReactNode }> = ({
         dynamicTyping: true,
         skipEmptyLines: true,
       });
-      return parsed.data as DataRow[];
+
+      // Extract mod columns from the parsed headers
+      const headers = parsed.meta.fields || [];
+      const modColumns = extractModColumns(headers);
+
+      console.log("CSV Headers:", headers);
+      console.log("Extracted mod columns:", modColumns);
+
+      return {
+        data: parsed.data as DataRow[],
+        columns: modColumns,
+      };
     } catch (error) {
       console.error("Error loading CSV:", error);
-      return [];
+      return { data: [], columns: [] };
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  // Initialize filters based on discovered columns
+  const initializeFilters = (columns: string[]) => {
+    const initialFilters: FilterState = {};
+    columns.forEach((column) => {
+      initialFilters[column] = new Set();
+    });
+    setFilters(initialFilters);
   };
 
   // Calculate filtered data based on active filters
@@ -65,12 +108,12 @@ export const FilterProvider: React.FC<{ children: React.ReactNode }> = ({
         return selectedValues.has(row[column as keyof DataRow] as number);
       });
     });
-  }, [rawData, filters]);
+  }, [rawData, filters, filterColumns]);
 
   // Calculate available options for each filter based on current filtered data
   const availableOptions = useMemo(() => {
     const options: { [key: string]: number[] } = {};
-    const filterColumns = ["mod3", "mod4", "mod5", "mod6"];
+    if (!rawData || filterColumns.length === 0) return options;
 
     filterColumns.forEach((column) => {
       // For the current column being filtered, show all original options
@@ -92,10 +135,14 @@ export const FilterProvider: React.FC<{ children: React.ReactNode }> = ({
     });
 
     return options;
-  }, [rawData, filteredData, filters]);
+  }, [rawData, filteredData, filters, filterColumns]);
 
   useEffect(() => {
-    loadCSVData().then(setRawData);
+    loadCSVData().then(({ data, columns }) => {
+      setRawData(data);
+      setFilterColumns(columns);
+      initializeFilters(columns);
+    });
   }, []);
 
   const contextValue: FilterContextType = {
@@ -103,6 +150,8 @@ export const FilterProvider: React.FC<{ children: React.ReactNode }> = ({
     setFilters,
     filteredData,
     availableOptions,
+    filterColumns,
+    isLoading,
   };
 
   return (

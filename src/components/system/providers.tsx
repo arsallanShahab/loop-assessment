@@ -1,13 +1,16 @@
-import Home from "@/pages/home";
+import { FilterProvider } from "@/context/filter-context";
+import Dashboard from "@/pages/dashboard";
 import { BrowserRouter, Route, Routes } from "react-router";
 
 const Providers = () => {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Home />} />
-      </Routes>
-    </BrowserRouter>
+    <FilterProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+        </Routes>
+      </BrowserRouter>
+    </FilterProvider>
   );
 };
 

@@ -1,22 +1,17 @@
-import FilterPanel from "@/components/system/filter-panel";
-import { FilterProvider, useFilter } from "@/context/filter-context";
-import React, { useState } from "react";
+import { useFilter } from "@/context/filter-context";
+import { useState } from "react";
 
-// Types
+// Updated types to be more flexible
 export interface DataRow {
-  number: number;
-  mod3: number;
-  mod4: number;
-  mod5: number;
-  mod6: number;
+  [key: string]: number | string; // Allow any column name with number or string values
 }
 
-// Data table component
 interface DataTableProps {
   data: DataRow[];
 }
 
 const DataTable: React.FC<DataTableProps> = ({ data }) => {
+  const { filterColumns } = useFilter(); // Get dynamic columns from context
   const [currentPage, setCurrentPage] = useState(1);
   const [visibleStart, setVisibleStart] = useState(0);
 
@@ -43,6 +38,10 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
     setVisibleStart(0);
   };
 
+  // Get all available columns from the first row of data (fallback to filterColumns)
+  const allColumns = data.length > 0 ? Object.keys(data[0]) : [];
+  const displayColumns = ["number", ...filterColumns]; // Always show 'number' first, then dynamic columns
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="p-4 border-b border-gray-200">
@@ -58,44 +57,34 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 #
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Number
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Mod 3
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Mod 4
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Mod 5
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Mod 6
-              </th>
+              {displayColumns.map((column) => (
+                <th
+                  key={column}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  {column === "number" ? "Number" : column.toUpperCase()}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {visibleData.map((row, index) => (
-              <tr key={row.number} className="hover:bg-gray-50">
+              <tr key={row.number || index} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {(currentPage - 1) * rowsPerPage + visibleStart + index + 1}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {row.number}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {row.mod3}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {row.mod4}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {row.mod5}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {row.mod6}
-                </td>
+                {displayColumns.map((column) => (
+                  <td
+                    key={column}
+                    className={`px-6 py-4 whitespace-nowrap text-sm ${
+                      column === "number"
+                        ? "font-medium text-gray-900"
+                        : "text-gray-500"
+                    }`}
+                  >
+                    {row[column] ?? "N/A"}
+                  </td>
+                ))}
               </tr>
             ))}
           </tbody>
@@ -153,35 +142,4 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
   );
 };
 
-// Main dashboard component
-const Dashboard: React.FC = () => {
-  const { filteredData } = useFilter();
-
-  return (
-    <div className="min-h-screen bg-white p-20">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold mb-2">
-            Business Intelligence Dashboard
-          </h1>
-          <p className="text-gray-400">
-            Dynamic filtering system with interdependent filters
-          </p>
-        </div>
-
-        <FilterPanel />
-        <DataTable data={filteredData || []} />
-      </div>
-    </div>
-  );
-};
-
-const App: React.FC = () => {
-  return (
-    <FilterProvider>
-      <Dashboard />
-    </FilterProvider>
-  );
-};
-
-export default App;
+export default DataTable;

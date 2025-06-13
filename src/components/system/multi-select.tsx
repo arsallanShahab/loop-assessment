@@ -17,6 +17,11 @@ interface MultiSelectProps {
   onSelectionChange: (column: string, values: Set<number>) => void;
   searchable?: boolean;
 }
+
+const ITEM_HEIGHT = 40; // Height of each option item in pixels
+const CONTAINER_HEIGHT = 176; // Max height of the scrollable container (max-h-40 = 160px)
+const BUFFER_SIZE = 5; // Number of items to render outside visible area
+
 const MultiSelect: React.FC<MultiSelectProps> = ({
   label,
   column,
@@ -27,7 +32,9 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [scrollTop, setScrollTop] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const filteredOptions = useMemo(() => {
     if (!searchTerm) return options;
@@ -35,6 +42,37 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
       option.toString().includes(searchTerm.toLowerCase())
     );
   }, [options, searchTerm]);
+
+  // Virtual scrolling calculations
+  const virtualScrolling = useMemo(() => {
+    const itemCount = filteredOptions.length;
+    const visibleItemCount = Math.ceil(CONTAINER_HEIGHT / ITEM_HEIGHT);
+    const startIndex = Math.max(
+      0,
+      Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER_SIZE
+    );
+    const endIndex = Math.min(
+      itemCount,
+      startIndex + visibleItemCount + BUFFER_SIZE * 2
+    );
+
+    const visibleItems = filteredOptions.slice(startIndex, endIndex);
+    const totalHeight = itemCount * ITEM_HEIGHT;
+    const offsetY = startIndex * ITEM_HEIGHT;
+
+    return {
+      visibleItems,
+      startIndex,
+      endIndex,
+      totalHeight,
+      offsetY,
+      itemCount,
+    };
+  }, [filteredOptions, scrollTop]);
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop);
+  }, []);
 
   const handleToggleOption = useCallback(
     (value: number) => {
@@ -76,6 +114,14 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen]);
+
+  // Reset scroll when search term changes
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+      setScrollTop(0);
+    }
+  }, [searchTerm]);
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -123,24 +169,62 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
             </button>
           </div>
 
-          <div className="max-h-40 overflow-y-auto">
-            {filteredOptions.map((option) => (
-              <Label
-                key={option}
-                data-testid={`option-${option}`}
-                className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
+          <div
+            ref={scrollContainerRef}
+            className="max-h-44 overflow-y-auto"
+            onScroll={handleScroll}
+            style={{ overflowAnchor: "none" }}
+          >
+            {/* Virtual scrolling container */}
+            <div
+              style={{
+                height: `${virtualScrolling.totalHeight}px`,
+                position: "relative",
+              }}
+            >
+              {/* Visible items container */}
+              <div
+                style={{
+                  transform: `translateY(${virtualScrolling.offsetY}px)`,
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                }}
               >
-                <Checkbox
-                  checked={selectedValues.has(option)}
-                  onCheckedChange={() => handleToggleOption(option)}
-                  className="mr-3"
-                />
-                <span className="text-sm">{option}</span>
-                {/* <span className="ml-auto text-xs text-gray-500">
-                  {options.includes(option) ? "Available" : "N/A"}
-                </span> */}
-              </Label>
-            ))}
+                {virtualScrolling.visibleItems.map((option, index) => {
+                  const actualIndex = virtualScrolling.startIndex + index;
+                  return (
+                    <Label
+                      key={actualIndex}
+                      data-testid={`option-${option}`}
+                      className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                      style={{
+                        height: `${ITEM_HEIGHT}px`,
+                        minHeight: `${ITEM_HEIGHT}px`,
+                        maxHeight: `${ITEM_HEIGHT}px`,
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Checkbox
+                        checked={selectedValues.has(option)}
+                        onCheckedChange={() => handleToggleOption(option)}
+                        className="mr-3 flex-shrink-0"
+                      />
+                      <span className="text-sm truncate">{option}</span>
+                    </Label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Show message when no items match search */}
+            {filteredOptions.length === 0 && searchTerm && (
+              <div className="px-3 py-4 text-center text-gray-500 text-sm">
+                No options match "{searchTerm}"
+              </div>
+            )}
           </div>
         </div>
       )}
