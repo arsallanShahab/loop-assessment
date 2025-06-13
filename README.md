@@ -124,13 +124,6 @@ The project uses **Shadcn/UI** design system with:
 - **CSS variables** for theming
 - **Lucide** icon library integration
 
-### Styling System
-
-- **Custom font integration** with Geist and Geist Mono fonts
-- **Dark mode support** with class-based toggle
-- **Comprehensive color system** with CSS custom properties
-- **Chart color palette** for data visualization
-
 ### Data Processing
 
 - CSV data handling with Papa Parse
